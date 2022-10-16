@@ -54,7 +54,7 @@ class PARAMS:
     auto_rotate = _PARAMETER(type=int, default=0, choices=[-1, 0, 1],
         help="Options to auto rotate tiles to best match the specified tile size. 0: do not auto rotate. "
              "1: attempt to rotate counterclockwise by 90 degrees. -1: attempt to rotate clockwise by 90 degrees")
-    resize_opt = _PARAMETER(type=str, default="center", choices=["center", "stretch", "fit"], 
+    resize_opt = _PARAMETER(type=str, default="center", choices=["center", "stretch", "fit", "fit2"], 
         help="How to resize each tile so they become square images. "
              "Center: crop a square in the center. Stretch: stretch the tile")
     gpu = _PARAMETER(type=bool, default=False, 
@@ -955,6 +955,8 @@ def read_images(pic_path: str, img_size: List[int], recursive, pool: mp.Pool, fl
         read_img = read_img_center
     if flag == "fit":
         read_img = read_img_fit
+    if flag == "fit2":
+        read_img = read_img_fit2
     result = [
         r for r in tqdm(
             pool.imap_unordered(
@@ -1072,6 +1074,19 @@ def resizeAndPad(img, size, padColor=255):
     return scaled_img
 
 def read_img_fit(args: Tuple[str, Tuple[int, int], int]):
+    img_file, img_size, rot = args
+    img = imread(img_file)
+    if img is None:
+        return img
+    
+    if rot != 0:
+        ratio = img_size[0] / img_size[1]
+        h, w, _ = img.shape
+        if abs(h / w - ratio) < abs(w / h - ratio):
+            img = np.rot90(img, k=rot)
+    return InfoArray(resizeAndPad(img, img_size), img_file)
+
+def read_img_fit2(args: Tuple[str, Tuple[int, int], int]):
     img_file, img_size, rot = args
     img = imread(img_file)
     if img is None:
